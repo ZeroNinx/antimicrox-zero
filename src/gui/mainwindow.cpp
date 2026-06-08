@@ -1654,9 +1654,8 @@ void MainWindow::loadAutoProfileWithExistingLogic(AutoProfileInfo *info, const Q
             if (info->getUniqueID() == "all")
             {
                 InputDevice *joystick = widget->getJoystick();
-                if (joystick != nullptr &&
-                    (skipUniqueIDs.contains(joystick->getUniqueIDString()) ||
-                     skipUniqueIDs.contains(joystick->getStringIdentifier())))
+                if (joystick != nullptr && (skipUniqueIDs.contains(joystick->getUniqueIDString()) ||
+                                            skipUniqueIDs.contains(joystick->getStringIdentifier())))
                 {
                     continue;
                 }

@@ -364,8 +364,7 @@ void InputDaemon::suspendInputCapture(QString uniqueID)
         while (iter.hasNext() && targetDevice == nullptr)
         {
             InputDevice *device = iter.next().value();
-            if (device != nullptr &&
-                (device->getUniqueIDString() == uniqueID || device->getStringIdentifier() == uniqueID))
+            if (device != nullptr && (device->getUniqueIDString() == uniqueID || device->getStringIdentifier() == uniqueID))
             {
                 targetDevice = device;
             }
