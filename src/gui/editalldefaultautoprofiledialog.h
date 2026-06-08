@@ -52,6 +52,7 @@ class EditAllDefaultAutoProfileDialog : public QDialog
   private slots:
     void openProfileBrowseDialog();
     void saveAutoProfileInformation();
+    void updateReleaseControllerControlState();
 };
 
 #endif // EDITALLDEFAULTAUTOPROFILEDIALOG_H

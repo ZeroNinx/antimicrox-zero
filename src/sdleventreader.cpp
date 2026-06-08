@@ -239,6 +239,18 @@ void SDLEventReader::closeDevices()
     }
 }
 
+void SDLEventReader::suspend()
+{
+    if (sdlIsOpen)
+        closeSDL();
+}
+
+void SDLEventReader::resume()
+{
+    if (!sdlIsOpen)
+        initSDL();
+}
+
 /**
  * @brief Method to block activity on the SDLEventReader object and its thread
  *   event loop.

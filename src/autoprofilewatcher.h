@@ -52,6 +52,7 @@ class AutoProfileWatcher : public QObject
     QHash<QString, QList<AutoProfileInfo *>> const &getWindowClassProfileAssignments();
     QHash<QString, QList<AutoProfileInfo *>> const &getWindowNameProfileAssignments();
     QHash<QString, AutoProfileInfo *> const &getDefaultProfileAssignments();
+    void resetCurrentApplication();
 
     static const int CHECKTIME = 500; // time in ms
 

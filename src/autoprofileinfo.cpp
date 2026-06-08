@@ -31,6 +31,7 @@ AutoProfileInfo::AutoProfileInfo(QString uniqueID, QString profileLocation, QStr
     setActive(active);
     setDefaultState(false);
     setPartialState(partialTitle);
+    setReleaseController(false);
 }
 
 AutoProfileInfo::AutoProfileInfo(QString uniqueID, QString profileLocation, bool active, bool partialTitle, QObject *parent)
@@ -41,6 +42,7 @@ AutoProfileInfo::AutoProfileInfo(QString uniqueID, QString profileLocation, bool
     setActive(active);
     setDefaultState(false);
     setPartialState(partialTitle);
+    setReleaseController(false);
 }
 
 AutoProfileInfo::AutoProfileInfo(QObject *parent)
@@ -49,6 +51,7 @@ AutoProfileInfo::AutoProfileInfo(QObject *parent)
     setActive(true);
     setDefaultState(false);
     setPartialState(false);
+    setReleaseController(false);
 }
 
 AutoProfileInfo::~AutoProfileInfo() {}
@@ -130,9 +133,14 @@ void AutoProfileInfo::setPartialState(bool value) { this->partialState = value; 
 
 bool AutoProfileInfo::isPartialState() { return partialState; }
 
+void AutoProfileInfo::setReleaseController(bool value) { this->releaseController = value; }
+
+bool AutoProfileInfo::shouldReleaseController() const { return releaseController; }
+
 QString AutoProfileInfo::toString() const
 {
     return QString("ID of assigned controller:%1, Profile Location:%2, Exe:%3,WindowClass:%4, WindowName:%5, isActive:%6, "
-                   "DeviceName:%7")
-        .arg(uniqueID, profileLocation, exe, windowClass, windowName, active ? "true" : "false", deviceName);
+                   "DeviceName:%7, ReleaseController:%8")
+        .arg(uniqueID, profileLocation, exe, windowClass, windowName, active ? "true" : "false", deviceName,
+             releaseController ? "true" : "false");
 }

@@ -122,6 +122,8 @@ MainWindow::MainWindow(QMap<SDL_JoystickID, InputDevice *> *joysticks, CommandLi
 #endif
 
     signalDisconnect = false;
+    inputCaptureSuspendedByAutoProfile = false;
+    allInputCaptureSuspendedByAutoProfile = false;
     showTrayIcon = !cmdutility->isTrayHidden() && graphical && !cmdutility->shouldListControllers();
 
     m_joysticks = joysticks;
@@ -985,6 +987,9 @@ void MainWindow::changeEvent(QEvent *event)
     } else if (event->type() == QEvent::LanguageChange)
     {
         retranslateUi();
+    } else if (event->type() == QEvent::ActivationChange && isActiveWindow())
+    {
+        resumeInputCaptureIfSuspended();
     }
 
     QMainWindow::changeEvent(event);
@@ -1459,7 +1464,7 @@ void MainWindow::testMappingUpdateNow(int index, InputDevice *device)
     }
 }
 
-void MainWindow::removeJoyTab(SDL_JoystickID deviceID)
+void MainWindow::removeJoyTab(SDL_JoystickID deviceID, bool saveDeviceSettings)
 {
     bool found = false;
     for (int i = 0; (i < ui->tabWidget->count()) && !found; i++)
@@ -1468,7 +1473,8 @@ void MainWindow::removeJoyTab(SDL_JoystickID deviceID)
         if ((tab != nullptr) && (deviceID == tab->getJoystick()->getSDLJoystickID()))
         {
             // Save most recent profile list to settings before removing tab.
-            tab->saveDeviceSettings();
+            if (saveDeviceSettings)
+                tab->saveDeviceSettings();
 
             // Remove flash event connections between buttons and
             // the tab before deleting tab.
@@ -1540,12 +1546,97 @@ void MainWindow::addJoyTab(InputDevice *device)
 
 void MainWindow::autoprofileLoad(AutoProfileInfo *info)
 {
+    if (info == nullptr)
+    {
+        loadAutoProfileWithExistingLogic(info);
+        return;
+    }
+
+    if (!info->shouldReleaseController())
+    {
+        if (!inputCaptureSuspendedByAutoProfile)
+        {
+            loadAutoProfileWithExistingLogic(info);
+            return;
+        }
+
+        if (!isAutoProfileBlockedBySuspendedInputCapture(info))
+        {
+            loadAutoProfileWithExistingLogic(info, inputCaptureSuspendedUniqueIDs);
+            return;
+        }
+
+        pendingAutoProfileAfterResume = info;
+        clearAutoProfileInputCaptureSuspension();
+        emit inputCaptureResumeRequested();
+        return;
+    }
+
+    const QString releaseInputCaptureUniqueID = info->getUniqueID();
+
+    if (releaseInputCaptureUniqueID == "all")
+    {
+        bool requestAllInputCaptureSuspend = !allInputCaptureSuspendedByAutoProfile;
+
+        inputCaptureSuspendedByAutoProfile = true;
+        allInputCaptureSuspendedByAutoProfile = true;
+        inputCaptureSuspendedUniqueIDs.clear();
+        pendingAutoProfileAfterResume = nullptr;
+
+        if (requestAllInputCaptureSuspend)
+        {
+            removeJoyTabs();
+            ui->stackedWidget->setCurrentIndex(0);
+            ui->actionUpdate_Joysticks->setEnabled(false);
+            emit inputCaptureSuspendRequested(releaseInputCaptureUniqueID);
+        }
+
+        return;
+    }
+
+    if (allInputCaptureSuspendedByAutoProfile || inputCaptureSuspendedUniqueIDs.contains(releaseInputCaptureUniqueID))
+    {
+        pendingAutoProfileAfterResume = nullptr;
+        return;
+    }
+
+    inputCaptureSuspendedByAutoProfile = true;
+    inputCaptureSuspendedUniqueIDs.insert(releaseInputCaptureUniqueID);
+    pendingAutoProfileAfterResume = nullptr;
+    ui->actionUpdate_Joysticks->setEnabled(false);
+    emit inputCaptureSuspendRequested(releaseInputCaptureUniqueID);
+}
+
+bool MainWindow::isAutoProfileBlockedBySuspendedInputCapture(AutoProfileInfo *info) const
+{
+    if (info == nullptr || !inputCaptureSuspendedByAutoProfile)
+        return false;
+
+    if (allInputCaptureSuspendedByAutoProfile)
+        return true;
+
+    if (info->getUniqueID() == "all")
+        return !inputCaptureSuspendedUniqueIDs.isEmpty();
+
+    return inputCaptureSuspendedUniqueIDs.contains(info->getUniqueID());
+}
+
+void MainWindow::clearAutoProfileInputCaptureSuspension()
+{
+    inputCaptureSuspendedByAutoProfile = false;
+    allInputCaptureSuspendedByAutoProfile = false;
+    inputCaptureSuspendedUniqueIDs.clear();
+}
+
+void MainWindow::loadAutoProfileWithExistingLogic(AutoProfileInfo *info, const QSet<QString> &skipUniqueIDs)
+{
     if (info != nullptr)
     {
         qDebug() << QString("Auto-switching to profile \"%1\".").arg(info->getProfileLocation());
     } else
     {
         qCritical() << QString("Auto-switching to nullptr profile!");
+        return;
     }
 #if defined(WITH_X11) || defined(Q_OS_WIN)
     #if defined(WITH_X11)
@@ -1562,6 +1653,14 @@ void MainWindow::autoprofileLoad(AutoProfileInfo *info)
             // if (info->getGUID() == "all")
             if (info->getUniqueID() == "all")
             {
+                InputDevice *joystick = widget->getJoystick();
+                if (joystick != nullptr &&
+                    (skipUniqueIDs.contains(joystick->getUniqueIDString()) ||
+                     skipUniqueIDs.contains(joystick->getStringIdentifier())))
+                {
+                    continue;
+                }
+
                 // If the all option for a Default profile was found,
                 // first check for controller specific associations. If one exists,
                 // skip changing the profile on the controller. A later call will
@@ -1640,6 +1739,32 @@ void MainWindow::autoprofileLoad(AutoProfileInfo *info)
     }
 
 #endif
+}
+
+void MainWindow::resumeInputCaptureIfSuspended()
+{
+    if (!inputCaptureSuspendedByAutoProfile)
+        return;
+
+    inputCaptureSuspendedByAutoProfile = false;
+    allInputCaptureSuspendedByAutoProfile = false;
+    inputCaptureSuspendedUniqueIDs.clear();
+    pendingAutoProfileAfterResume = nullptr;
+
+    if (appWatcher != nullptr)
+        appWatcher->resetCurrentApplication();
+
+    emit inputCaptureResumeRequested();
+}
+
+void MainWindow::completePendingAutoProfileLoad()
+{
+    if (pendingAutoProfileAfterResume)
+    {
+        loadAutoProfileWithExistingLogic(pendingAutoProfileAfterResume);
+    }
+
+    pendingAutoProfileAfterResume = nullptr;
 }
 
 void MainWindow::checkAutoProfileWatcherTimer()

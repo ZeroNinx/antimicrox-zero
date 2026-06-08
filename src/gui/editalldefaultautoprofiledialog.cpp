@@ -43,10 +43,16 @@ EditAllDefaultAutoProfileDialog::EditAllDefaultAutoProfileDialog(AutoProfileInfo
     if (!info->getProfileLocation().isEmpty())
         ui->profileLineEdit->setText(info->getProfileLocation());
 
+    ui->releaseControllerCheckBox->setChecked(info->shouldReleaseController());
+
     connect(ui->profileBrowsePushButton, &QPushButton::clicked, this,
             &EditAllDefaultAutoProfileDialog::openProfileBrowseDialog);
+    connect(ui->releaseControllerCheckBox, &QCheckBox::toggled, this,
+            &EditAllDefaultAutoProfileDialog::updateReleaseControllerControlState);
     connect(this, &EditAllDefaultAutoProfileDialog::accepted, this,
             &EditAllDefaultAutoProfileDialog::saveAutoProfileInformation);
+
+    updateReleaseControllerControlState();
 }
 
 EditAllDefaultAutoProfileDialog::~EditAllDefaultAutoProfileDialog() { delete ui; }
@@ -66,6 +72,14 @@ void EditAllDefaultAutoProfileDialog::saveAutoProfileInformation()
     info->setUniqueID("all");
     info->setProfileLocation(ui->profileLineEdit->text());
     info->setActive(true);
+    info->setReleaseController(ui->releaseControllerCheckBox->isChecked());
+}
+
+void EditAllDefaultAutoProfileDialog::updateReleaseControllerControlState()
+{
+    bool releaseController = ui->releaseControllerCheckBox->isChecked();
+    ui->profileLineEdit->setEnabled(!releaseController);
+    ui->profileBrowsePushButton->setEnabled(!releaseController);
 }
 
 AutoProfileInfo *EditAllDefaultAutoProfileDialog::getAutoProfile() const { return info; }
@@ -75,7 +89,7 @@ void EditAllDefaultAutoProfileDialog::accept()
     bool validForm = true;
     QString errorString = QString();
 
-    if (ui->profileLineEdit->text().length() > 0)
+    if (!ui->releaseControllerCheckBox->isChecked() && ui->profileLineEdit->text().length() > 0)
     {
         QFileInfo profileInfo(ui->profileLineEdit->text());
 

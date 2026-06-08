@@ -185,6 +185,16 @@ of the all default profile option.</string>
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QCheckBox" name="releaseControllerCheckBox">
+       <property name="toolTip">
+        <string>Allows the focused application to receive selected gamepad input directly until AntiMicroX is focused again or another auto profile is selected.</string>
+       </property>
+       <property name="text">
+        <string>Release gamepad(s) while this profile is active</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>

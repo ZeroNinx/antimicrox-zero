@@ -23,6 +23,8 @@
 //#include "fakeclasses/xbox360wireless.h"
 #include <SDL2/SDL_events.h>
 
+#include <QSet>
+
 class InputDevice;
 class AntiMicroSettings;
 class InputDeviceBitArrayStatus;
@@ -59,7 +61,10 @@ class InputDaemon : public QObject
     Joystick *openJoystickDevice(int index);
 
     void clearBitArrayStatusInstances();
+    void clearBitArrayStatusInstances(InputDevice *device);
     void convertMappingsToUnique(QSettings *sett, QString guidString, QString uniqueIdString);
+    bool isInputDeviceCaptureSuspended(InputDevice *device) const;
+    void discardInputDevice(InputDevice *device);
 
   signals:
     void joystickRefreshed(InputDevice *joystick);
@@ -68,8 +73,10 @@ class InputDaemon : public QObject
     void complete();
 
     void deviceUpdated(int index, InputDevice *device);
-    void deviceRemoved(SDL_JoystickID deviceID);
+    void deviceRemoved(SDL_JoystickID deviceID, bool saveDeviceSettings);
     void deviceAdded(InputDevice *device);
+    void inputCaptureSuspended();
+    void inputCaptureResumed();
 
   public slots:
     void run();
@@ -79,9 +86,12 @@ class InputDaemon : public QObject
     void refreshJoysticks();
     void startWorker();
     void refreshMapping(QString mapping, InputDevice *device);
-    void removeDevice(InputDevice *device);
+    void removeDevice(InputDevice *device, bool saveDeviceSettings = true);
     void addInputDevice(int index, QMap<QString, int> &uniques, int &counterUniques, bool &duplicatedGamepad);
     void refreshIndexes();
+    void suspendInputCapture(QString uniqueID);
+    void resumeInputCapture();
+    bool isInputCaptureSuspended() const;
 
   private slots:
     void stop();
@@ -102,6 +112,9 @@ class InputDaemon : public QObject
 
     bool stopped;
     bool m_graphical;
+    bool m_inputCaptureSuspended;
+    bool m_allInputCaptureSuspended;
+    QSet<QString> m_suspendedCaptureUniqueIDs;
 
     SDLEventReader *eventWorker;
     QThread *sdlWorkerThread;

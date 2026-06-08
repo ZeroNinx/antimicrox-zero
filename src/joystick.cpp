@@ -64,6 +64,9 @@ QString Joystick::getGUIDString() const
 {
     QString temp = QString();
 
+    if (m_joyhandle == nullptr)
+        return temp;
+
     SDL_JoystickGUID tempGUID = SDL_JoystickGetGUID(m_joyhandle);
     char guidString[65] = {'0'};
     SDL_JoystickGetGUIDString(tempGUID, guidString, sizeof(guidString));
@@ -142,26 +145,43 @@ QString Joystick::getUniqueIDString() const
 
 void Joystick::closeSDLDevice()
 {
+    if (controller != nullptr)
+    {
+        SDL_GameControllerClose(controller);
+        controller = nullptr;
+    }
+
     if ((m_joyhandle != nullptr) && SDL_JoystickGetAttached(m_joyhandle))
     {
         SDL_JoystickClose(m_joyhandle);
     }
+
+    m_joyhandle = nullptr;
 }
 
 int Joystick::getNumberRawButtons()
 {
+    if (m_joyhandle == nullptr)
+        return 0;
+
     int numbuttons = SDL_JoystickNumButtons(m_joyhandle);
     return numbuttons;
 }
 
 int Joystick::getNumberRawAxes()
 {
+    if (m_joyhandle == nullptr)
+        return 0;
+
     int numaxes = SDL_JoystickNumAxes(m_joyhandle);
     return numaxes;
 }
 
 int Joystick::getNumberRawHats()
 {
+    if (m_joyhandle == nullptr)
+        return 0;
+
     int numhats = SDL_JoystickNumHats(m_joyhandle);
     return numhats;
 }

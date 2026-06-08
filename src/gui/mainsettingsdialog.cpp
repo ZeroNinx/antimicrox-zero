@@ -821,11 +821,13 @@ void MainSettingsDialog::populateAutoProfiles()
     QString allProfile = settings->value(QString("DefaultAutoProfileAll/Profile"), "all").toString();
     QString allActive = settings->value(QString("DefaultAutoProfileAll/Active"), "0").toString();
     QString partialTitle = settings->value(QString("DefaultAutoProfileAll/PartialTitle"), "").toString();
+    QString allReleaseController = settings->value(QString("DefaultAutoProfileAll/ReleaseController"), "0").toString();
 
     bool defaultActive = allActive == "1" ? true : false;
     bool partialTitleBool = partialTitle == "1" ? true : false;
     allDefaultProfile = new AutoProfileInfo("all", allProfile, defaultActive, partialTitleBool, this);
     allDefaultProfile->setDefaultState(true);
+    allDefaultProfile->setReleaseController(allReleaseController == "1");
 
     QStringListIterator iter(registeredGUIDs);
     while (iter.hasNext())
@@ -840,6 +842,8 @@ void MainSettingsDialog::populateAutoProfiles()
         QString windowClass = settings->value(QString("DefaultAutoProfile-%1/WindowClass").arg(guid), "").toString();
         QString windowName = settings->value(QString("DefaultAutoProfile-%1/WindowName").arg(guid), "").toString();
         QString exe = settings->value(QString("DefaultAutoProfile-%1/Exe").arg(guid), "").toString();
+        QString releaseController =
+            settings->value(QString("DefaultAutoProfile-%1/ReleaseController").arg(guid), "0").toString();
 
         if (!guid.isEmpty() && !profile.isEmpty() && !deviceName.isEmpty())
         {
@@ -852,6 +856,7 @@ void MainSettingsDialog::populateAutoProfiles()
                 info->setExe(exe);
                 info->setWindowName(windowName);
                 info->setWindowClass(windowClass);
+                info->setReleaseController(releaseController == "1");
                 defaultAutoProfiles.insert(guid, info);
                 defaultList.append(info);
                 QList<AutoProfileInfo *> templist;
@@ -880,6 +885,7 @@ void MainSettingsDialog::populateAutoProfiles()
         QString partialTitle = settings->value(QString("AutoProfile%1PartialTitle").arg(i), 0).toString();
         bool partialTitleBool = partialTitle == "1" ? true : false;
         QString deviceName = settings->value(QString("AutoProfile%1DeviceName").arg(i), "").toString();
+        QString releaseController = settings->value(QString("AutoProfile%1ReleaseController").arg(i), "0").toString();
 
         // Check if all required elements exist. If not, assume that the end of the
         // list has been reached.
@@ -887,6 +893,7 @@ void MainSettingsDialog::populateAutoProfiles()
         {
             bool profileActive = active == "1" ? true : false;
             AutoProfileInfo *info = new AutoProfileInfo(guid, profile, exe, profileActive, partialTitleBool, this);
+            info->setReleaseController(releaseController == "1");
             if (!deviceName.isEmpty())
             {
                 info->setDeviceName(deviceName);
@@ -1145,6 +1152,8 @@ void MainSettingsDialog::saveAutoProfileSettings()
         QString defaultActive = allDefaultProfile->isActive() ? "1" : "0";
         settings->setValue(QString("DefaultAutoProfileAll/Profile"), profile);
         settings->setValue(QString("DefaultAutoProfileAll/Active"), defaultActive);
+        if (allDefaultProfile->shouldReleaseController())
+            settings->setValue(QString("DefaultAutoProfileAll/ReleaseController"), "1");
     }
 
     QMapIterator<QString, AutoProfileInfo *> iter(defaultAutoProfiles);
@@ -1165,6 +1174,8 @@ void MainSettingsDialog::saveAutoProfileSettings()
         settings->setValue(QString("DefaultAutoProfile-%1/WindowClass").arg(guid), info->getWindowClass());
         settings->setValue(QString("DefaultAutoProfile-%1/Exe").arg(guid), info->getExe());
         settings->setValue(QString("DefaultAutoProfile-%1/PartialTitle").arg(guid), 0);
+        if (info->shouldReleaseController())
+            settings->setValue(QString("DefaultAutoProfile-%1/ReleaseController").arg(guid), "1");
     }
 
     if (!registeredGUIDs.isEmpty())
@@ -1204,6 +1215,8 @@ void MainSettingsDialog::saveAutoProfileSettings()
         settings->setValue(QString("AutoProfile%1Active").arg(i), defaultActive);
         settings->setValue(QString("AutoProfile%1PartialTitle").arg(i), partialTitle);
         settings->setValue(QString("AutoProfile%1DeviceName").arg(i), info->getDeviceName());
+        if (info->shouldReleaseController())
+            settings->setValue(QString("AutoProfile%1ReleaseController").arg(i), "1");
         i++;
     }
     settings->endGroup();

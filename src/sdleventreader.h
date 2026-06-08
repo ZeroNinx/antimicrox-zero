@@ -59,6 +59,8 @@ class SDLEventReader : public QObject
     void resetJoystickMap();
     void quit();
     void closeDevices();
+    void suspend();
+    void resume();
     void haltServices();
 
   private slots:

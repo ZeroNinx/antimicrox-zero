@@ -64,6 +64,9 @@ class AutoProfileInfo : public QObject
     void setPartialState(bool value);
     bool isPartialState();
 
+    void setReleaseController(bool value);
+    bool shouldReleaseController() const;
+
     QString toString() const;
 
   private:
@@ -76,6 +79,7 @@ class AutoProfileInfo : public QObject
     bool active;
     bool defaultState;
     bool partialState;
+    bool releaseController;
 };
 
 Q_DECLARE_METATYPE(AutoProfileInfo *)

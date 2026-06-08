@@ -69,6 +69,7 @@ class AddEditAutoProfileDialog : public QDialog
     void openApplicationBrowseDialog();
     void saveAutoProfileInformation();
     void checkForReservedUniques(int index);
+    void updateReleaseControllerControlState();
     void checkForDefaultStatus();
     void windowPropAssignment(CapturedWindowInfoDialog *dialog);
     void checkDefaultCheckbox(const QString &text);

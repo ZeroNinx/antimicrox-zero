@@ -23,6 +23,8 @@
 
 #include <QMainWindow>
 #include <QMap>
+#include <QPointer>
+#include <QSet>
 #include <QSystemTrayIcon>
 
 #ifdef CHECK_FOR_UPDATES
@@ -91,6 +93,8 @@ class MainWindow : public QMainWindow
     void joystickRefreshRequested();
     void readConfig(int index); // MainConfiguration class
     void mappingUpdated(QString mapping, InputDevice *device);
+    void inputCaptureSuspendRequested(QString uniqueID);
+    void inputCaptureResumeRequested();
 
   public slots:
     void checkEachTenMinutesBattery(QMap<SDL_JoystickID, InputDevice *> *joysticks);
@@ -108,10 +112,11 @@ class MainWindow : public QMainWindow
     void changeWindowStatus();
     void refreshTabHelperThreads();
     void testMappingUpdateNow(int index, InputDevice *device);
-    void removeJoyTab(SDL_JoystickID deviceID);
+    void removeJoyTab(SDL_JoystickID deviceID, bool saveDeviceSettings = true);
     void addJoyTab(InputDevice *device);
     void selectControllerJoyTab(QString GUID);
     void handleInstanceDisconnect();
+    void completePendingAutoProfileLoad();
 
   private slots:
     void refreshTrayIconMenu();
@@ -151,6 +156,10 @@ class MainWindow : public QMainWindow
      * @brief Check state of batteries in controllers and notify user (only when powerLevSDL matches current battery level)
      */
     void showBatteryLevel(SDL_JoystickPowerLevel powerLevSDL, QString batteryLev, QString percent, InputDevice *device);
+    bool isAutoProfileBlockedBySuspendedInputCapture(AutoProfileInfo *info) const;
+    void clearAutoProfileInputCaptureSuspension();
+    void loadAutoProfileWithExistingLogic(AutoProfileInfo *info, const QSet<QString> &skipUniqueIDs = QSet<QString>());
+    void resumeInputCaptureIfSuspended();
 
     Ui::MainWindow *ui;
 
@@ -174,6 +183,10 @@ class MainWindow : public QMainWindow
     bool signalDisconnect;
     bool showTrayIcon;
     bool m_graphical;
+    bool inputCaptureSuspendedByAutoProfile;
+    bool allInputCaptureSuspendedByAutoProfile;
+    QSet<QString> inputCaptureSuspendedUniqueIDs;
+    QPointer<AutoProfileInfo> pendingAutoProfileAfterResume;
 
 #ifdef CHECK_FOR_UPDATES
     QNetworkAccessManager m_network_manager; // Used for checking updates

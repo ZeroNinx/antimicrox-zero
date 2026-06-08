@@ -109,6 +109,7 @@ AddEditAutoProfileDialog::AddEditAutoProfileDialog(AutoProfileInfo *info, AntiMi
     ui->applicationLineEdit->setText(info->getExe());
     ui->winClassLineEdit->setText(info->getWindowClass());
     ui->winNameLineEdit->setText(info->getWindowName());
+    ui->releaseControllerCheckBox->setChecked(info->shouldReleaseController());
 #ifdef Q_OS_UNIX
     ui->selectWindowPushButton->setVisible(false);
 #elif defined(Q_OS_WIN)
@@ -127,6 +128,8 @@ AddEditAutoProfileDialog::AddEditAutoProfileDialog(AutoProfileInfo *info, AntiMi
             &AddEditAutoProfileDialog::checkForReservedUniques);
     connect(ui->devicesComboBox, static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentTextChanged), this,
             &AddEditAutoProfileDialog::checkDefaultCheckbox);
+    connect(ui->releaseControllerCheckBox, &QCheckBox::toggled, this,
+            &AddEditAutoProfileDialog::updateReleaseControllerControlState);
     connect(ui->applicationLineEdit, &QLineEdit::textChanged, this, &AddEditAutoProfileDialog::checkForDefaultStatus);
     connect(ui->winClassLineEdit, &QLineEdit::textChanged, this, &AddEditAutoProfileDialog::checkForDefaultStatus);
     connect(ui->winNameLineEdit, &QLineEdit::textChanged, this, &AddEditAutoProfileDialog::checkForDefaultStatus);
@@ -139,6 +142,7 @@ AddEditAutoProfileDialog::AddEditAutoProfileDialog(AutoProfileInfo *info, AntiMi
     connect(this, &AddEditAutoProfileDialog::accepted, this, &AddEditAutoProfileDialog::saveAutoProfileInformation);
 
     ui->asDefaultCheckBox->setChecked(info->isCurrentDefault());
+    updateReleaseControllerControlState();
 }
 
 // created for tests
@@ -204,6 +208,7 @@ void AddEditAutoProfileDialog::saveAutoProfileInformation()
     info->setWindowName(ui->winNameLineEdit->text());
     info->setDefaultState(ui->asDefaultCheckBox->isChecked());
     info->setPartialState(ui->setPartialCheckBox->isChecked());
+    info->setReleaseController(ui->releaseControllerCheckBox->isChecked());
 }
 
 void AddEditAutoProfileDialog::checkForReservedUniques(int index)
@@ -226,6 +231,29 @@ void AddEditAutoProfileDialog::checkForReservedUniques(int index)
         ui->asDefaultCheckBox->setEnabled(true);
         QMessageBox::information(this, tr("Chosen Profile"),
                                  tr("The selection will be used instead\nof the all default profile option."));
+    }
+
+    updateReleaseControllerControlState();
+}
+
+void AddEditAutoProfileDialog::updateReleaseControllerControlState()
+{
+    bool releaseController = ui->releaseControllerCheckBox->isChecked();
+    ui->profileLineEdit->setEnabled(!releaseController);
+    ui->profileBrowsePushButton->setEnabled(!releaseController);
+
+    if (releaseController)
+    {
+        ui->asDefaultCheckBox->setEnabled(false);
+    } else
+    {
+        bool hasWindowRule = !ui->applicationLineEdit->text().isEmpty() || !ui->winClassLineEdit->text().isEmpty() ||
+                             !ui->winNameLineEdit->text().isEmpty();
+        QVariant data = ui->devicesComboBox->itemData(ui->devicesComboBox->currentIndex());
+        bool reservedDevice =
+            !data.isNull() && getReservedUniques().contains(data.value<InputDevice *>()->getUniqueIDString());
+
+        ui->asDefaultCheckBox->setEnabled(ui->devicesComboBox->currentText() != "all" && !hasWindowRule && !reservedDevice);
     }
 }
 
@@ -383,6 +411,9 @@ void AddEditAutoProfileDialog::checkForDefaultStatus()
     {
         ui->asDefaultCheckBox->setEnabled(true);
     }
+
+    if (ui->releaseControllerCheckBox->isChecked())
+        ui->asDefaultCheckBox->setEnabled(false);
 }
 
 /**
@@ -390,6 +421,9 @@ void AddEditAutoProfileDialog::checkForDefaultStatus()
  */
 void AddEditAutoProfileDialog::check_profile_file()
 {
+    if (ui->releaseControllerCheckBox->isChecked())
+        return;
+
     if (ui->profileLineEdit->text().length() > 0)
     {
         QFileInfo profileFileName(ui->profileLineEdit->text());
@@ -471,6 +505,8 @@ void AddEditAutoProfileDialog::checkDefaultCheckbox(const QString &text)
     {
         ui->asDefaultCheckBox->setDisabled(false);
     }
+
+    updateReleaseControllerControlState();
 }
 
 #ifdef Q_OS_WIN

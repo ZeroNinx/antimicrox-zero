@@ -309,26 +309,73 @@ void AutoProfileWatcher::runAppCheck()
             }
         }
 
+        QList<AutoProfileInfo *> applicableProfiles;
+
         for (auto &&info : highestMatches)
         {
             getUniqeIDSetLocal().insert(info->getUniqueID());
-            emit foundApplicableProfile(info);
+            applicableProfiles.append(info);
         }
 
         if ((!getDefaultProfileAssignments().isEmpty() || allDefaultInfo) && !focusedWidget)
         {
             if (allDefaultInfo != nullptr && allDefaultInfo->isActive() && !getUniqeIDSetLocal().contains("all"))
             {
-                emit foundApplicableProfile(allDefaultInfo);
+                applicableProfiles.append(allDefaultInfo);
             }
 
             for (auto &&info : getDefaultProfileAssignments())
             {
                 if (info->isActive() && !getUniqeIDSetLocal().contains(info->getUniqueID()))
                 {
-                    emit foundApplicableProfile(info);
+                    applicableProfiles.append(info);
                 }
             }
+        }
+
+        AutoProfileInfo *releaseAllAutoProfile = nullptr;
+        QList<AutoProfileInfo *> releaseControllerProfiles;
+        QSet<QString> releaseControllerUniqueIDs;
+        for (AutoProfileInfo *info : applicableProfiles)
+        {
+            if (info->shouldReleaseController())
+            {
+                if (info->getUniqueID() == "all")
+                {
+                    releaseAllAutoProfile = info;
+                    break;
+                }
+
+                releaseControllerProfiles.append(info);
+                releaseControllerUniqueIDs.insert(info->getUniqueID());
+            }
+        }
+
+        if (releaseAllAutoProfile != nullptr)
+        {
+            emit foundApplicableProfile(releaseAllAutoProfile);
+            return;
+        }
+
+        if (!releaseControllerUniqueIDs.isEmpty())
+        {
+            for (AutoProfileInfo *info : applicableProfiles)
+            {
+                if (!info->shouldReleaseController() && !releaseControllerUniqueIDs.contains(info->getUniqueID()))
+                    emit foundApplicableProfile(info);
+            }
+
+            for (AutoProfileInfo *info : releaseControllerProfiles)
+            {
+                emit foundApplicableProfile(info);
+            }
+
+            return;
+        }
+
+        for (AutoProfileInfo *info : applicableProfiles)
+        {
+            emit foundApplicableProfile(info);
         }
     }
 }
@@ -354,6 +401,7 @@ void AutoProfileWatcher::syncProfileAssignment()
 
     QString allProfile = settings->value(QString("DefaultAutoProfileAll/Profile"), "all").toString();
     QString allActive = settings->value(QString("DefaultAutoProfileAll/Active"), "0").toString();
+    QString allReleaseController = settings->value(QString("DefaultAutoProfileAll/ReleaseController"), "0").toString();
 
     // Handle overall Default profile assignment
     bool defaultActive = allActive == "1" ? true : false;
@@ -362,6 +410,7 @@ void AutoProfileWatcher::syncProfileAssignment()
     {
         allDefaultInfo = new AutoProfileInfo("all", allProfile, defaultActive, 0, this);
         allDefaultInfo->setDefaultState(true);
+        allDefaultInfo->setReleaseController(allReleaseController == "1");
     }
 
     // Handle device specific Default profile assignments
@@ -374,6 +423,8 @@ void AutoProfileWatcher::syncProfileAssignment()
         QString partialTitle = settings->value(QString("DefaultAutoProfile-%1/PartialTitle").arg(uniqueID), "").toString();
         QString windowClass = settings->value(QString("DefaultAutoProfile-%1/WindowClass").arg(uniqueID), "").toString();
         QString windowName = settings->value(QString("DefaultAutoProfile-%1/WindowName").arg(uniqueID), "").toString();
+        QString releaseController =
+            settings->value(QString("DefaultAutoProfile-%1/ReleaseController").arg(uniqueID), "0").toString();
 
         // need to change when it's needed to add windowClass, title and partial name
         if (!uniqueID.isEmpty() && !profile.isEmpty())
@@ -388,6 +439,7 @@ void AutoProfileWatcher::syncProfileAssignment()
                 info->setWindowClass(windowClass);
                 info->setPartialState(partialTitle == "1" ? true : false);
                 info->setDefaultState(true);
+                info->setReleaseController(releaseController == "1");
                 defaultProfileAssignments.insert(uniqueID, info);
             }
         }
@@ -409,6 +461,7 @@ void AutoProfileWatcher::syncProfileAssignment()
         active = settings->value(QString("AutoProfile%1Active").arg(i), 0).toString();
         windowName = settings->value(QString("AutoProfile%1WindowName").arg(i), "").toString();
         QString partialTitle = settings->value(QString("AutoProfile%1PartialTitle").arg(i), 0).toString();
+        QString releaseController = settings->value(QString("AutoProfile%1ReleaseController").arg(i), "0").toString();
         bool partialTitleBool = partialTitle == "1" ? true : false;
 
 #ifdef Q_OS_UNIX
@@ -426,6 +479,7 @@ void AutoProfileWatcher::syncProfileAssignment()
             if (profileActive)
             {
                 AutoProfileInfo *info = new AutoProfileInfo(uniqueID, profile, profileActive, partialTitleBool, this);
+                info->setReleaseController(releaseController == "1");
 
                 if (!windowClass.isEmpty())
                 {
@@ -605,6 +659,12 @@ QList<AutoProfileInfo *> *AutoProfileWatcher::getCustomDefaults()
 AutoProfileInfo *AutoProfileWatcher::getDefaultAllProfile() { return allDefaultInfo; }
 
 bool AutoProfileWatcher::isUniqueIDLocked(QString uniqueID) { return getUniqeIDSetLocal().contains(uniqueID); }
+
+void AutoProfileWatcher::resetCurrentApplication()
+{
+    currentApplication.clear();
+    currentAppWindowTitle.clear();
+}
 
 QHash<QString, QList<AutoProfileInfo *>> const &AutoProfileWatcher::getAppProfileAssignments()
 {

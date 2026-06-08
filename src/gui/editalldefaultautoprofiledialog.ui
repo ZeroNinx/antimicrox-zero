@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>384</width>
-    <height>114</height>
+    <height>142</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -56,6 +56,16 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="releaseControllerCheckBox">
+     <property name="toolTip">
+      <string>Allows the focused application to receive gamepad input directly. AntiMicroX will stop loading profiles for all devices until AntiMicroX is focused again or another auto profile is selected.</string>
+     </property>
+     <property name="text">
+      <string>Release all gamepads while this default profile is active</string>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
